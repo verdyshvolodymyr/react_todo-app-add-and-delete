@@ -12,24 +12,27 @@ import { ErrorMassage } from './components/errorMassage';
 import { ErrorMessage } from './types/ErrorMessage';
 
 export const App: React.FC = () => {
-  const [userTodo, setUserTodo] = useState<Todo[]>([]);
+  const [userTodos, setUserTodos] = useState<Todo[]>([]);
   const [errorMassage, setErrorMassage] = useState<ErrorMessage | null>(null);
   const [sortTodo, setsortTodo] = useState<Sort>('all');
   const [clearCompletedDisabled, setClearCompletedDisabled] = useState(true);
+  const [isLoader, setIsLoader] = useState<string | number | null>(null);
+  const [tempTitle, setTempTitle] = useState('');
+  const [updateAfterClearDelete, setUpdateAfterClearDelete] = useState(true);
 
   useEffect(() => {
     getTodos()
-      .then(setUserTodo)
+      .then(setUserTodos)
       .catch(() => {
         setErrorMassage(ErrorMessage.Load);
       });
-  }, [userTodo]);
+  }, [updateAfterClearDelete]);
 
   useEffect(() => {
-    const hasCompleted = userTodo.some(todo => todo.completed);
+    const hasCompleted = userTodos.some(todo => todo.completed);
 
     setClearCompletedDisabled(!hasCompleted);
-  }, [userTodo]);
+  }, [userTodos]);
 
   useEffect(() => {
     if (!errorMassage) {
@@ -55,40 +58,49 @@ export const App: React.FC = () => {
       return Promise.resolve();
     }
 
+    setIsLoader('temp');
+    setTempTitle(title);
+
     return addTodos({ title, userId, completed })
       .then(newToDo => {
-        setUserTodo(currentTodos => [...currentTodos, newToDo]);
+        setUserTodos(currentTodos => [...currentTodos, newToDo]);
       })
       .catch(error => {
         setErrorMassage(ErrorMessage.Add);
         throw error;
+      })
+      .finally(() => {
+        setIsLoader(null);
       });
   }
 
   function deletePost(postId: number) {
+    setIsLoader(postId);
+
     return deleteTodos(postId)
       .then(() => {
-        setUserTodo(currentPosts => {
+        setUserTodos(currentPosts => {
           return currentPosts.filter(post => post.id !== postId);
         });
       })
       .catch(error => {
         setErrorMassage(ErrorMessage.Delete);
         throw error;
-      });
+      })
+      .finally(() => setIsLoader(null));
   }
 
-  function clearDelete(allTodo: Todo[]) {
-    allTodo.map(todo => {
-      if (todo.completed) {
-        deleteTodos(todo.id);
-      }
+  function clearDelete(completedTodos: Todo[]) {
+    Promise.all(
+      completedTodos
+        .filter(todo => todo.completed)
+        .map(todo => deleteTodos(todo.id)),
+    ).then(() => {
+      setUpdateAfterClearDelete(!updateAfterClearDelete);
     });
-
-    setUserTodo(userTodo);
   }
 
-  const sortedUserTodo = userTodo.filter(todo => {
+  const sortedUserTodo = userTodos.filter(todo => {
     if (sortTodo === 'active') {
       return todo.completed === false;
     }
@@ -106,12 +118,17 @@ export const App: React.FC = () => {
 
       <div className="todoapp__content">
         <Header onSubmit={addToDo} />
-        <TodoList sortedUserTodo={sortedUserTodo} onDelete={deletePost} />
+        <TodoList
+          sortedUserTodo={sortedUserTodo}
+          onDelete={deletePost}
+          isLoader={isLoader}
+          tempTitle={tempTitle}
+        />
 
-        {userTodo.length > 0 && (
+        {userTodos.length > 0 && (
           <Footer
             sort={setsortTodo}
-            userTodo={userTodo}
+            userTodo={userTodos}
             visible={clearCompletedDisabled}
             clearDelete={clearDelete}
           />

@@ -14,7 +14,8 @@ export const Footer: React.FC<Props> = ({
   sort,
   userTodo,
   visible,
-  clearDelete }) => {
+  clearDelete,
+}) => {
   const [selectedAll, setSelectedAll] = useState(true);
   const [selectedActive, setSelectedActive] = useState(false);
   const [selectedComplited, setSelectedComplited] = useState(false);
