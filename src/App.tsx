@@ -91,12 +91,30 @@ export const App: React.FC = () => {
   }
 
   function clearDelete(completedTodos: Todo[]) {
-    Promise.all(
-      completedTodos
-        .filter(todo => todo.completed)
-        .map(todo => deleteTodos(todo.id)),
-    ).then(() => {
-      setUpdateAfterClearDelete(!updateAfterClearDelete);
+    const completedIds = completedTodos
+      .filter(todo => todo.completed)
+      .map(todo => todo.id);
+
+    const deleteResults = completedIds.map(id =>
+      deleteTodos(id)
+        .then(() => ({ id, success: true }))
+        .catch(() => {
+          setErrorMassage(ErrorMessage.Delete);
+
+          return { id, success: false };
+        }),
+    );
+
+    Promise.all(deleteResults).then(results => {
+      const successfulIds = results
+        .filter(result => result.success)
+        .map(result => result.id);
+
+      setUserTodos(current =>
+        current.filter(todo => !successfulIds.includes(todo.id))
+      );
+
+      setUpdateAfterClearDelete(prev => !prev);
     });
   }
 
